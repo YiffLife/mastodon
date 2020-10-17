@@ -1,6 +1,10 @@
 ---
 ru:
   activerecord:
+    attributes:
+      poll:
+        expires_at: Крайний срок
+        options: Варианты
     errors:
       models:
         account:
@@ -10,4 +14,4 @@ ru:
         status:
           attributes:
             reblog:
-              taken: статуса уже существует
+              taken: поста уже существует

@@ -4,13 +4,14 @@ module Settings
   class ScopedSettings
     DEFAULTING_TO_UNSCOPED = %w(
       theme
+      noindex
     ).freeze
 
     def initialize(object)
       @object = object
     end
 
-    # rubocop:disable Style/MethodMissing
+    # rubocop:disable Style/MethodMissingSuper
     def method_missing(method, *args)
       method_name = method.to_s
       # set a value for a variable
@@ -23,7 +24,7 @@ module Settings
         self[method_name]
       end
     end
-    # rubocop:enable Style/MethodMissing
+    # rubocop:enable Style/MethodMissingSuper
 
     def respond_to_missing?(*)
       true
@@ -47,7 +48,6 @@ module Settings
       record.update!(value: value)
 
       Rails.cache.write(Setting.cache_key(key, @object), value)
-      value
     end
 
     def [](key)

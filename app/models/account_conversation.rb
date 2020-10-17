@@ -30,7 +30,8 @@ class AccountConversation < ApplicationRecord
     if participant_account_ids.empty?
       [account]
     else
-      Account.where(id: participant_account_ids)
+      participants = Account.where(id: participant_account_ids)
+      participants.empty? ? [account] : participants
     end
   end
 
@@ -107,7 +108,7 @@ class AccountConversation < ApplicationRecord
   end
 
   def subscribed_to_timeline?
-    Redis.current.exists("subscribed:#{streaming_channel}")
+    Redis.current.exists?("subscribed:#{streaming_channel}")
   end
 
   def streaming_channel

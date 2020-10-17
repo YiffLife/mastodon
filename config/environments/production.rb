@@ -71,13 +71,22 @@ Rails.application.configure do
   # Better log formatting
   config.lograge.enabled = true
 
+  config.lograge.custom_payload do |controller|
+    if controller.respond_to?(:signed_request?) && controller.signed_request?
+      { key: controller.signature_key_id }
+    end
+  end
+
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
   config.action_mailer.perform_caching = false
 
   # E-mails
-  config.action_mailer.default_options = { from: ENV.fetch('SMTP_FROM_ADDRESS', 'notifications@localhost') }
+  config.action_mailer.default_options = {
+    from: ENV.fetch('SMTP_FROM_ADDRESS', 'notifications@localhost'),
+    reply_to: ENV['SMTP_REPLY_TO']
+  }
 
   config.action_mailer.smtp_settings = {
     :port                 => ENV['SMTP_PORT'],
@@ -90,6 +99,7 @@ Rails.application.configure do
     :openssl_verify_mode  => ENV['SMTP_OPENSSL_VERIFY_MODE'],
     :enable_starttls_auto => ENV['SMTP_ENABLE_STARTTLS_AUTO'] || true,
     :tls                  => ENV['SMTP_TLS'].presence,
+    :ssl                  => ENV['SMTP_SSL'].presence,
   }
 
   config.action_mailer.delivery_method = ENV.fetch('SMTP_DELIVERY_METHOD', 'smtp').to_sym
