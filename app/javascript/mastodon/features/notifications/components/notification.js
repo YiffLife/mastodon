@@ -1,12 +1,23 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import ImmutablePropTypes from 'react-immutable-proptypes';
-import StatusContainer from '../../../containers/status_container';
-import AccountContainer from '../../../containers/account_container';
-import { injectIntl, FormattedMessage } from 'react-intl';
-import Permalink from '../../../components/permalink';
-import ImmutablePureComponent from 'react-immutable-pure-component';
+import { injectIntl, FormattedMessage, defineMessages } from 'react-intl';
 import { HotKeys } from 'react-hotkeys';
+import PropTypes from 'prop-types';
+import ImmutablePureComponent from 'react-immutable-pure-component';
+import { me } from 'mastodon/initial_state';
+import StatusContainer from 'mastodon/containers/status_container';
+import AccountContainer from 'mastodon/containers/account_container';
+import FollowRequestContainer from '../containers/follow_request_container';
+import Icon from 'mastodon/components/icon';
+import Permalink from 'mastodon/components/permalink';
+
+const messages = defineMessages({
+  favourite: { id: 'notification.favourite', defaultMessage: '{name} favourited your status' },
+  follow: { id: 'notification.follow', defaultMessage: '{name} followed you' },
+  ownPoll: { id: 'notification.own_poll', defaultMessage: 'Your poll has ended' },
+  poll: { id: 'notification.poll', defaultMessage: 'A poll you have voted in has ended' },
+  reblog: { id: 'notification.reblog', defaultMessage: '{name} boosted your status' },
+});
 
 const notificationForScreenReader = (intl, message, timestamp) => {
   const output = [message];
@@ -16,8 +27,8 @@ const notificationForScreenReader = (intl, message, timestamp) => {
   return output.join(', ');
 };
 
-@injectIntl
-export default class Notification extends ImmutablePureComponent {
+export default @injectIntl
+class Notification extends ImmutablePureComponent {
 
   static contextTypes = {
     router: PropTypes.object,
@@ -29,7 +40,15 @@ export default class Notification extends ImmutablePureComponent {
     onMoveUp: PropTypes.func.isRequired,
     onMoveDown: PropTypes.func.isRequired,
     onMention: PropTypes.func.isRequired,
+    onFavourite: PropTypes.func.isRequired,
+    onReblog: PropTypes.func.isRequired,
+    onToggleHidden: PropTypes.func.isRequired,
+    status: ImmutablePropTypes.map,
     intl: PropTypes.object.isRequired,
+    getScrollPosition: PropTypes.func,
+    updateScrollBottom: PropTypes.func,
+    cacheMediaWidth: PropTypes.func,
+    cachedMediaWidth: PropTypes.number,
   };
 
   handleMoveUp = () => {
@@ -64,14 +83,32 @@ export default class Notification extends ImmutablePureComponent {
     onMention(notification.get('account'), this.context.router.history);
   }
 
+  handleHotkeyFavourite = () => {
+    const { status } = this.props;
+    if (status) this.props.onFavourite(status);
+  }
+
+  handleHotkeyBoost = e => {
+    const { status } = this.props;
+    if (status) this.props.onReblog(status, e);
+  }
+
+  handleHotkeyToggleHidden = () => {
+    const { status } = this.props;
+    if (status) this.props.onToggleHidden(status);
+  }
+
   getHandlers () {
     return {
-      moveUp: this.handleMoveUp,
-      moveDown: this.handleMoveDown,
+      reply: this.handleMention,
+      favourite: this.handleHotkeyFavourite,
+      boost: this.handleHotkeyBoost,
+      mention: this.handleMention,
       open: this.handleOpen,
       openProfile: this.handleOpenProfile,
-      mention: this.handleMention,
-      reply: this.handleMention,
+      moveUp: this.handleMoveUp,
+      moveDown: this.handleMoveDown,
+      toggleHidden: this.handleHotkeyToggleHidden,
     };
   }
 
@@ -80,16 +117,40 @@ export default class Notification extends ImmutablePureComponent {
 
     return (
       <HotKeys handlers={this.getHandlers()}>
-        <div className='notification notification-follow focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage({ id: 'notification.follow', defaultMessage: '{name} followed you' }, { name: account.get('acct') }), notification.get('created_at'))}>
+        <div className='notification notification-follow focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage(messages.follow, { name: account.get('acct') }), notification.get('created_at'))}>
           <div className='notification__message'>
             <div className='notification__favourite-icon-wrapper'>
-              <i className='fa fa-fw fa-user-plus' />
+              <Icon id='user-plus' fixedWidth />
             </div>
 
-            <FormattedMessage id='notification.follow' defaultMessage='{name} followed you' values={{ name: link }} />
+            <span title={notification.get('created_at')}>
+              <FormattedMessage id='notification.follow' defaultMessage='{name} followed you' values={{ name: link }} />
+            </span>
           </div>
 
-          <AccountContainer id={account.get('id')} withNote={false} hidden={this.props.hidden} />
+          <AccountContainer id={account.get('id')} hidden={this.props.hidden} />
+        </div>
+      </HotKeys>
+    );
+  }
+
+  renderFollowRequest (notification, account, link) {
+    const { intl } = this.props;
+
+    return (
+      <HotKeys handlers={this.getHandlers()}>
+        <div className='notification notification-follow-request focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage({ id: 'notification.follow_request', defaultMessage: '{name} has requested to follow you' }, { name: account.get('acct') }), notification.get('created_at'))}>
+          <div className='notification__message'>
+            <div className='notification__favourite-icon-wrapper'>
+              <Icon id='user' fixedWidth />
+            </div>
+
+            <span title={notification.get('created_at')}>
+              <FormattedMessage id='notification.follow_request' defaultMessage='{name} has requested to follow you' values={{ name: link }} />
+            </span>
+          </div>
+
+          <FollowRequestContainer id={account.get('id')} withNote={false} hidden={this.props.hidden} />
         </div>
       </HotKeys>
     );
@@ -104,6 +165,10 @@ export default class Notification extends ImmutablePureComponent {
         onMoveDown={this.handleMoveDown}
         onMoveUp={this.handleMoveUp}
         contextType='notifications'
+        getScrollPosition={this.props.getScrollPosition}
+        updateScrollBottom={this.props.updateScrollBottom}
+        cachedMediaWidth={this.props.cachedMediaWidth}
+        cacheMediaWidth={this.props.cacheMediaWidth}
       />
     );
   }
@@ -113,15 +178,28 @@ export default class Notification extends ImmutablePureComponent {
 
     return (
       <HotKeys handlers={this.getHandlers()}>
-        <div className='notification notification-favourite focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage({ id: 'notification.favourite', defaultMessage: '{name} favourited your status' }, { name: notification.getIn(['account', 'acct']) }), notification.get('created_at'))}>
+        <div className='notification notification-favourite focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage(messages.favourite, { name: notification.getIn(['account', 'acct']) }), notification.get('created_at'))}>
           <div className='notification__message'>
             <div className='notification__favourite-icon-wrapper'>
-              <i className='fa fa-fw fa-star star-icon' />
+              <Icon id='star' className='star-icon' fixedWidth />
             </div>
-            <FormattedMessage id='notification.favourite' defaultMessage='{name} favourited your status' values={{ name: link }} />
+
+            <span title={notification.get('created_at')}>
+              <FormattedMessage id='notification.favourite' defaultMessage='{name} favourited your status' values={{ name: link }} />
+            </span>
           </div>
 
-          <StatusContainer id={notification.get('status')} account={notification.get('account')} muted withDismiss hidden={!!this.props.hidden} />
+          <StatusContainer
+            id={notification.get('status')}
+            account={notification.get('account')}
+            muted
+            withDismiss
+            hidden={!!this.props.hidden}
+            getScrollPosition={this.props.getScrollPosition}
+            updateScrollBottom={this.props.updateScrollBottom}
+            cachedMediaWidth={this.props.cachedMediaWidth}
+            cacheMediaWidth={this.props.cacheMediaWidth}
+          />
         </div>
       </HotKeys>
     );
@@ -132,15 +210,66 @@ export default class Notification extends ImmutablePureComponent {
 
     return (
       <HotKeys handlers={this.getHandlers()}>
-        <div className='notification notification-reblog focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage({ id: 'notification.reblog', defaultMessage: '{name} boosted your status' }, { name: notification.getIn(['account', 'acct']) }), notification.get('created_at'))}>
+        <div className='notification notification-reblog focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, intl.formatMessage(messages.reblog, { name: notification.getIn(['account', 'acct']) }), notification.get('created_at'))}>
           <div className='notification__message'>
             <div className='notification__favourite-icon-wrapper'>
-              <i className='fa fa-fw fa-retweet' />
+              <Icon id='retweet' fixedWidth />
             </div>
-            <FormattedMessage id='notification.reblog' defaultMessage='{name} boosted your status' values={{ name: link }} />
+
+            <span title={notification.get('created_at')}>
+              <FormattedMessage id='notification.reblog' defaultMessage='{name} boosted your status' values={{ name: link }} />
+            </span>
           </div>
 
-          <StatusContainer id={notification.get('status')} account={notification.get('account')} muted withDismiss hidden={this.props.hidden} />
+          <StatusContainer
+            id={notification.get('status')}
+            account={notification.get('account')}
+            muted
+            withDismiss
+            hidden={this.props.hidden}
+            getScrollPosition={this.props.getScrollPosition}
+            updateScrollBottom={this.props.updateScrollBottom}
+            cachedMediaWidth={this.props.cachedMediaWidth}
+            cacheMediaWidth={this.props.cacheMediaWidth}
+          />
+        </div>
+      </HotKeys>
+    );
+  }
+
+  renderPoll (notification, account) {
+    const { intl } = this.props;
+    const ownPoll  = me === account.get('id');
+    const message  = ownPoll ? intl.formatMessage(messages.ownPoll) : intl.formatMessage(messages.poll);
+
+    return (
+      <HotKeys handlers={this.getHandlers()}>
+        <div className='notification notification-poll focusable' tabIndex='0' aria-label={notificationForScreenReader(intl, message, notification.get('created_at'))}>
+          <div className='notification__message'>
+            <div className='notification__favourite-icon-wrapper'>
+              <Icon id='tasks' fixedWidth />
+            </div>
+
+            <span title={notification.get('created_at')}>
+              {ownPoll ? (
+                <FormattedMessage id='notification.own_poll' defaultMessage='Your poll has ended' />
+              ) : (
+                <FormattedMessage id='notification.poll' defaultMessage='A poll you have voted in has ended' />
+              )}
+            </span>
+          </div>
+
+          <StatusContainer
+            id={notification.get('status')}
+            account={account}
+            muted
+            withDismiss
+            hidden={this.props.hidden}
+            getScrollPosition={this.props.getScrollPosition}
+            updateScrollBottom={this.props.updateScrollBottom}
+            cachedMediaWidth={this.props.cachedMediaWidth}
+            cacheMediaWidth={this.props.cacheMediaWidth}
+          />
         </div>
       </HotKeys>
     );
@@ -155,12 +284,16 @@ export default class Notification extends ImmutablePureComponent {
     switch(notification.get('type')) {
     case 'follow':
       return this.renderFollow(notification, account, link);
+    case 'follow_request':
+      return this.renderFollowRequest(notification, account, link);
     case 'mention':
       return this.renderMention(notification);
     case 'favourite':
       return this.renderFavourite(notification, link);
     case 'reblog':
       return this.renderReblog(notification, link);
+    case 'poll':
+      return this.renderPoll(notification, account);
     }
 
     return null;

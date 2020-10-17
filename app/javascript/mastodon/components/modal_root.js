@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import 'wicg-inert';
 
 export default class ModalRoot extends React.PureComponent {
 
@@ -21,8 +22,30 @@ export default class ModalRoot extends React.PureComponent {
     }
   }
 
+  handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      const focusable = Array.from(this.node.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((x) => window.getComputedStyle(x).display !== 'none');
+      const index = focusable.indexOf(e.target);
+
+      let element;
+
+      if (e.shiftKey) {
+        element = focusable[index - 1] || focusable[focusable.length - 1];
+      } else {
+        element = focusable[index + 1] || focusable[0];
+      }
+
+      if (element) {
+        element.focus();
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }
+  }
+
   componentDidMount () {
     window.addEventListener('keyup', this.handleKeyUp, false);
+    window.addEventListener('keydown', this.handleKeyDown, false);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -38,8 +61,16 @@ export default class ModalRoot extends React.PureComponent {
   componentDidUpdate (prevProps) {
     if (!this.props.children && !!prevProps.children) {
       this.getSiblings().forEach(sibling => sibling.removeAttribute('inert'));
-      this.activeElement.focus();
-      this.activeElement = null;
+
+      // Because of the wicg-inert polyfill, the activeElement may not be
+      // immediately selectable, we have to wait for observers to run, as
+      // described in https://github.com/WICG/inert#performance-and-gotchas
+      Promise.resolve().then(() => {
+        this.activeElement.focus({ preventScroll: true });
+        this.activeElement = null;
+      }).catch((error) => {
+        console.error(error);
+      });
     }
     if (this.props.children) {
       requestAnimationFrame(() => {
@@ -50,6 +81,7 @@ export default class ModalRoot extends React.PureComponent {
 
   componentWillUnmount () {
     window.removeEventListener('keyup', this.handleKeyUp);
+    window.removeEventListener('keydown', this.handleKeyDown);
   }
 
   getSiblings = () => {

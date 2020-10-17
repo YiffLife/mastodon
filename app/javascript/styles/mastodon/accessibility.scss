@@ -1,14 +1,13 @@
-$black-emojis: '8ball' 'ant' 'back' 'black_circle' 'black_large_square' 'black_medium_small_square' 'black_medium_square' 'black_nib' 'black_small_square' 'bomb' 'bust_in_silhouette' 'camera' 'camera_with_flash' 'clubs' 'copyright' 'curly_loop' 'currency_exchange' 'end' 'heavy_check_mark' 'heavy_division_sign' 'heavy_dollar_sign' 'heavy_minus_sign' 'heavy_multiplication_x' 'heavy_plus_sign' 'lower_left_fountain_pen' 'on' 'registered' 'soon' 'spades' 'spider' 'tm' 'top' 'waving_black_flag' 'wavy_dash' 'video_game';
+$emojis-requiring-inversion: 'back' 'copyright' 'curly_loop' 'currency_exchange' 'end' 'heavy_check_mark' 'heavy_division_sign' 'heavy_dollar_sign' 'heavy_minus_sign' 'heavy_multiplication_x' 'heavy_plus_sign' 'on' 'registered' 'soon' 'spider' 'telephone_receiver' 'tm' 'top' 'wavy_dash' !default;
 
-%white-emoji-outline {
-  filter: drop-shadow(1px 1px 0 $white) drop-shadow(-1px 1px 0 $white) drop-shadow(1px -1px 0 $white) drop-shadow(-1px -1px 0 $white);
-  transform: scale(.71);
+%emoji-color-inversion {
+  filter: invert(1);
 }
 
 .emojione {
-  @each $emoji in $black-emojis {
+  @each $emoji in $emojis-requiring-inversion {
     &[title=':#{$emoji}:'] {
-      @extend %white-emoji-outline;
+      @extend %emoji-color-inversion;
     }
   }
 }

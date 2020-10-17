@@ -13,24 +13,27 @@ import { fetchDomainBlocks, expandDomainBlocks } from '../../actions/domain_bloc
 import ScrollableList from '../../components/scrollable_list';
 
 const messages = defineMessages({
-  heading: { id: 'column.domain_blocks', defaultMessage: 'Hidden domains' },
-  unblockDomain: { id: 'account.unblock_domain', defaultMessage: 'Unhide {domain}' },
+  heading: { id: 'column.domain_blocks', defaultMessage: 'Blocked domains' },
+  unblockDomain: { id: 'account.unblock_domain', defaultMessage: 'Unblock domain {domain}' },
 });
 
 const mapStateToProps = state => ({
   domains: state.getIn(['domain_lists', 'blocks', 'items']),
+  hasMore: !!state.getIn(['domain_lists', 'blocks', 'next']),
 });
 
-@connect(mapStateToProps)
+export default @connect(mapStateToProps)
 @injectIntl
-export default class Blocks extends ImmutablePureComponent {
+class Blocks extends ImmutablePureComponent {
 
   static propTypes = {
     params: PropTypes.object.isRequired,
     dispatch: PropTypes.func.isRequired,
     shouldUpdateScroll: PropTypes.func,
+    hasMore: PropTypes.bool,
     domains: ImmutablePropTypes.orderedSet,
     intl: PropTypes.object.isRequired,
+    multiColumn: PropTypes.bool,
   };
 
   componentWillMount () {
@@ -42,7 +45,7 @@ export default class Blocks extends ImmutablePureComponent {
   }, 300, { leading: true });
 
   render () {
-    const { intl, domains, shouldUpdateScroll } = this.props;
+    const { intl, domains, shouldUpdateScroll, hasMore, multiColumn } = this.props;
 
     if (!domains) {
       return (
@@ -52,19 +55,21 @@ export default class Blocks extends ImmutablePureComponent {
       );
     }
 
-    const emptyMessage = <FormattedMessage id='empty_column.domain_blocks' defaultMessage='There are no hidden domains yet.' />;
+    const emptyMessage = <FormattedMessage id='empty_column.domain_blocks' defaultMessage='There are no blocked domains yet.' />;
 
     return (
-      <Column icon='minus-circle' heading={intl.formatMessage(messages.heading)}>
+      <Column bindToDocument={!multiColumn} icon='minus-circle' heading={intl.formatMessage(messages.heading)}>
         <ColumnBackButtonSlim />
         <ScrollableList
           scrollKey='domain_blocks'
           onLoadMore={this.handleLoadMore}
+          hasMore={hasMore}
           shouldUpdateScroll={shouldUpdateScroll}
           emptyMessage={emptyMessage}
+          bindToDocument={!multiColumn}
         >
           {domains.map(domain =>
-            <DomainContainer key={domain} domain={domain} />
+            <DomainContainer key={domain} domain={domain} />,
           )}
         </ScrollableList>
       </Column>

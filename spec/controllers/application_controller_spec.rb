@@ -22,11 +22,6 @@ describe ApplicationController, type: :controller do
   end
 
   shared_examples 'respond_with_error' do |code|
-    it "returns http #{code} for any" do
-      subject
-      expect(response).to have_http_status(code)
-    end
-
     it "returns http #{code} for http" do
       subject
       expect(response).to have_http_status(code)
@@ -94,7 +89,7 @@ describe ApplicationController, type: :controller do
 
   describe 'helper_method :current_theme' do
     it 'returns "default" when theme wasn\'t changed in admin settings' do
-      allow(Setting).to receive(:default_settings).and_return({'theme' => 'default'})
+      allow(Setting).to receive(:default_settings).and_return({ 'theme' => 'default' })
 
       expect(controller.view_context.current_theme).to eq 'default'
     end
@@ -110,6 +105,7 @@ describe ApplicationController, type: :controller do
       sign_in current_user
 
       allow(Setting).to receive(:[]).with('theme').and_return 'contrast'
+      allow(Setting).to receive(:[]).with('noindex').and_return false
 
       expect(controller.view_context.current_theme).to eq 'contrast'
     end
@@ -187,17 +183,17 @@ describe ApplicationController, type: :controller do
       expect(response).to have_http_status(200)
     end
 
-    it 'returns http 403 if user who signed in is suspended' do
+    it 'redirects to account status page' do
       sign_in(Fabricate(:user, account: Fabricate(:account, suspended: true)))
       get 'success'
-      expect(response).to have_http_status(403)
+      expect(response).to redirect_to(edit_user_registration_path)
     end
   end
 
   describe 'raise_not_found' do
     it 'raises error' do
       controller.params[:unmatched_route] = 'unmatched'
-      expect{ controller.raise_not_found }.to raise_error(ActionController::RoutingError, 'No route matches unmatched')
+      expect { controller.raise_not_found }.to raise_error(ActionController::RoutingError, 'No route matches unmatched')
     end
   end
 
@@ -359,10 +355,6 @@ describe ApplicationController, type: :controller do
 
     context 'Status' do
       include_examples 'cacheable', :status, Status
-    end
-
-    context 'StreamEntry' do
-      include_examples 'receives :with_includes', :stream_entry, StreamEntry
     end
   end
 end

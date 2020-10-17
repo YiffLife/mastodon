@@ -1,5 +1,8 @@
+require:
+  - rubocop-rails
+
 AllCops:
-  TargetRubyVersion: 2.3
+  TargetRubyVersion: 2.4
   Exclude:
   - 'spec/**/*'
   - 'db/**/*'
@@ -25,6 +28,10 @@ Layout/EmptyLineAfterMagicComment:
 Layout/SpaceInsideHashLiteralBraces:
   EnforcedStyle: space
 
+Lint/UselessAccessModifier:
+  ContextCreatingMethods:
+    - class_methods
+
 Metrics/AbcSize:
   Max: 100
 
@@ -43,7 +50,7 @@ Metrics/ClassLength:
 Metrics/CyclomaticComplexity:
   Max: 25
 
-Metrics/LineLength:
+Layout/LineLength:
   AllowURI: true
   Enabled: false
 
@@ -68,6 +75,9 @@ Naming/MemoizedInstanceVariableName:
 Rails:
   Enabled: true
 
+Rails/EnumHash:
+  Enabled: false
+
 Rails/HasAndBelongsToMany:
   Enabled: false
 
@@ -75,6 +85,14 @@ Rails/SkipsModelValidations:
   Enabled: false
 
 Rails/HttpStatus:
+  Enabled: false
+
+Rails/Exit:
+  Exclude:
+    - 'lib/mastodon/*'
+    - 'lib/cli.rb'
+
+Rails/HelperInstanceVariable:
   Enabled: false
 
 Style/ClassAndModuleChildren:
@@ -90,6 +108,9 @@ Style/Documentation:
 
 Style/DoubleNegation:
   Enabled: true
+
+Style/FormatStringToken:
+  Enabled: false
 
 Style/FrozenStringLiteralComment:
   Enabled: true

@@ -13,7 +13,7 @@ describe Admin::ReportedStatusesController do
 
   describe 'POST #create' do
     subject do
-      -> { post :create, params: { :report_id  => report, action => '', :form_status_batch => { status_ids: status_ids } } }
+      -> { post :create, params: { :report_id => report, action => '', :form_status_batch => { status_ids: status_ids } } }
     end
 
     let(:action) { 'nsfw_on' }
@@ -47,7 +47,7 @@ describe Admin::ReportedStatusesController do
       it 'removes a status' do
         allow(RemovalWorker).to receive(:perform_async)
         subject.call
-        expect(RemovalWorker).to have_received(:perform_async).with(status_ids.first)
+        expect(RemovalWorker).to have_received(:perform_async).with(status_ids.first, immediate: true)
       end
     end
 

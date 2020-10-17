@@ -13,7 +13,7 @@ Rails.application.configure do
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
   config.action_controller.perform_caching = true
-  config.action_controller.asset_host      = ENV['CDN_HOST'] if ENV.key?('CDN_HOST')
+  config.action_controller.asset_host      = ENV['CDN_HOST'] if ENV['CDN_HOST'].present?
 
   # Ensures that a master key has been made available in either ENV["RAILS_MASTER_KEY"]
   # or in config/master.key. This key is used to decrypt credentials (and other encrypted files).
@@ -42,7 +42,7 @@ Rails.application.configure do
   config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for NGINX
 
   # Allow to specify public IP of reverse proxy if it's needed
-  config.action_dispatch.trusted_proxies = ENV['TRUSTED_PROXY_IP'].split.map { |item| IPAddr.new(item) } unless ENV['TRUSTED_PROXY_IP'].blank?
+  config.action_dispatch.trusted_proxies = ENV['TRUSTED_PROXY_IP'].split.map { |item| IPAddr.new(item) } if ENV['TRUSTED_PROXY_IP'].present?
 
   # Use the lowest log level to ensure availability of diagnostic information
   # when problems arise.
@@ -71,13 +71,22 @@ Rails.application.configure do
   # Better log formatting
   config.lograge.enabled = true
 
+  config.lograge.custom_payload do |controller|
+    if controller.respond_to?(:signed_request?) && controller.signed_request?
+      { key: controller.signature_key_id }
+    end
+  end
+
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
   config.action_mailer.perform_caching = false
 
   # E-mails
-  config.action_mailer.default_options = { from: ENV.fetch('SMTP_FROM_ADDRESS', 'notifications@localhost') }
+  config.action_mailer.default_options = {
+    from: ENV.fetch('SMTP_FROM_ADDRESS', 'notifications@localhost'),
+    reply_to: ENV['SMTP_REPLY_TO']
+  }
 
   config.action_mailer.smtp_settings = {
     :port                 => ENV['SMTP_PORT'],
@@ -90,6 +99,7 @@ Rails.application.configure do
     :openssl_verify_mode  => ENV['SMTP_OPENSSL_VERIFY_MODE'],
     :enable_starttls_auto => ENV['SMTP_ENABLE_STARTTLS_AUTO'] || true,
     :tls                  => ENV['SMTP_TLS'].presence,
+    :ssl                  => ENV['SMTP_SSL'].presence,
   }
 
   config.action_mailer.delivery_method = ENV.fetch('SMTP_DELIVERY_METHOD', 'smtp').to_sym

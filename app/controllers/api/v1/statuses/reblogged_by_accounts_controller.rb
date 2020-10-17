@@ -7,8 +7,6 @@ class Api::V1::Statuses::RebloggedByAccountsController < Api::BaseController
   before_action :set_status
   after_action :insert_pagination_headers
 
-  respond_to :json
-
   def index
     @accounts = load_accounts
     render json: @accounts, each_serializer: REST::AccountSerializer
@@ -17,15 +15,17 @@ class Api::V1::Statuses::RebloggedByAccountsController < Api::BaseController
   private
 
   def load_accounts
-    default_accounts.merge(paginated_statuses).to_a
+    scope = default_accounts
+    scope = scope.where.not(id: current_account.excluded_from_timeline_account_ids) unless current_account.nil?
+    scope.merge(paginated_statuses).to_a
   end
 
   def default_accounts
-    Account.includes(:statuses).references(:statuses)
+    Account.includes(:statuses, :account_stat).references(:statuses)
   end
 
   def paginated_statuses
-    Status.where(reblog_of_id: @status.id).paginate_by_max_id(
+    Status.where(reblog_of_id: @status.id).where(visibility: [:public, :unlisted]).paginate_by_max_id(
       limit_param(DEFAULT_ACCOUNTS_LIMIT),
       params[:max_id],
       params[:since_id]
@@ -64,8 +64,7 @@ class Api::V1::Statuses::RebloggedByAccountsController < Api::BaseController
     @status = Status.find(params[:status_id])
     authorize @status, :show?
   rescue Mastodon::NotPermittedError
-    # Reraise in order to get a 404 instead of a 403 error code
-    raise ActiveRecord::RecordNotFound
+    not_found
   end
 
   def pagination_params(core_params)

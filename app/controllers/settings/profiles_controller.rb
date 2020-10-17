@@ -1,15 +1,10 @@
 # frozen_string_literal: true
 
-class Settings::ProfilesController < ApplicationController
-  include ObfuscateFilename
-
+class Settings::ProfilesController < Settings::BaseController
   layout 'admin'
 
   before_action :authenticate_user!
   before_action :set_account
-
-  obfuscate_filename [:account, :avatar]
-  obfuscate_filename [:account, :header]
 
   def show
     @account.build_fields
@@ -28,10 +23,10 @@ class Settings::ProfilesController < ApplicationController
   private
 
   def account_params
-    params.require(:account).permit(:display_name, :note, :avatar, :header, :locked, :bot, fields_attributes: [:name, :value])
+    params.require(:account).permit(:display_name, :note, :avatar, :header, :locked, :bot, :discoverable, fields_attributes: [:name, :value])
   end
 
   def set_account
-    @account = current_user.account
+    @account = current_account
   end
 end

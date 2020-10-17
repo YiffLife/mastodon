@@ -10,6 +10,6 @@ export default function configureStore() {
     thunk,
     loadingBarMiddleware({ promiseTypeSuffixes: ['REQUEST', 'SUCCESS', 'FAIL'] }),
     errorsMiddleware(),
-    soundsMiddleware()
-  ), window.devToolsExtension ? window.devToolsExtension() : f => f));
+    soundsMiddleware(),
+  ), window.__REDUX_DEVTOOLS_EXTENSION__ ? window.__REDUX_DEVTOOLS_EXTENSION__() : f => f));
 };

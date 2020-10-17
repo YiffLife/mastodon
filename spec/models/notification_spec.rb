@@ -1,10 +1,6 @@
 require 'rails_helper'
 
 RSpec.describe Notification, type: :model do
-  describe '#from_account' do
-    pending
-  end
-
   describe '#target_status' do
     let(:notification) { Fabricate(:notification, activity: activity) }
     let(:status)       { Fabricate(:status) }
@@ -34,32 +30,6 @@ RSpec.describe Notification, type: :model do
 
       it 'returns status' do
         expect(notification.target_status).to eq status
-      end
-    end
-  end
-
-  describe '#browserable?' do
-    let(:notification) { Fabricate(:notification) }
-
-    subject { notification.browserable? }
-
-    context 'type is :follow_request' do
-      before do
-        allow(notification).to receive(:type).and_return(:follow_request)
-      end
-
-      it 'returns false' do
-        is_expected.to be false
-      end
-    end
-
-    context 'type is not :follow_request' do
-      before do
-        allow(notification).to receive(:type).and_return(:else)
-      end
-
-      it 'returns true' do
-        is_expected.to be true
       end
     end
   end
@@ -101,7 +71,7 @@ RSpec.describe Notification, type: :model do
       before do
         allow(accounts_with_ids).to receive(:[]).with(stale_account1.id).and_return(account1)
         allow(accounts_with_ids).to receive(:[]).with(stale_account2.id).and_return(account2)
-        allow(Account).to receive_message_chain(:where, :map, :to_h).and_return(accounts_with_ids)
+        allow(Account).to receive_message_chain(:where, :includes, :each_with_object).and_return(accounts_with_ids)
       end
 
       let(:cached_items) do

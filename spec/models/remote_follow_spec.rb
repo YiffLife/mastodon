@@ -34,7 +34,7 @@ RSpec.describe RemoteFollow do
     subject { remote_follow.valid? }
 
     context 'attrs with acct' do
-      let(:attrs) { { acct: 'gargron@quitter.no' }}
+      let(:attrs) { { acct: 'gargron@quitter.no' } }
 
       it do
         is_expected.to be true
@@ -42,7 +42,7 @@ RSpec.describe RemoteFollow do
     end
 
     context 'attrs without acct' do
-      let(:attrs) { { } }
+      let(:attrs) { {} }
 
       it do
         is_expected.to be false
@@ -61,7 +61,7 @@ RSpec.describe RemoteFollow do
     subject { remote_follow.subscribe_address_for(account) }
 
     it 'returns subscribe address' do
-      is_expected.to eq 'https://quitter.no/main/ostatussub?profile=alice%40cb6e6126.ngrok.io'
+      is_expected.to eq 'https://quitter.no/main/ostatussub?profile=https%3A%2F%2Fcb6e6126.ngrok.io%2Fusers%2Falice'
     end
   end
 end

@@ -4,8 +4,6 @@ class Api::V1::Timelines::TagController < Api::BaseController
   before_action :load_tag
   after_action :insert_pagination_headers, unless: -> { @statuses.empty? }
 
-  respond_to :json
-
   def show
     @statuses = load_statuses
     render json: @statuses, each_serializer: REST::StatusSerializer, relationships: StatusRelationshipsPresenter.new(@statuses, current_user&.account_id)
@@ -14,7 +12,7 @@ class Api::V1::Timelines::TagController < Api::BaseController
   private
 
   def load_tag
-    @tag = Tag.find_by(name: params[:id].downcase)
+    @tag = Tag.find_normalized(params[:id])
   end
 
   def load_statuses
@@ -29,10 +27,9 @@ class Api::V1::Timelines::TagController < Api::BaseController
     if @tag.nil?
       []
     else
-      statuses = tag_timeline_statuses.paginate_by_max_id(
+      statuses = tag_timeline_statuses.paginate_by_id(
         limit_param(DEFAULT_STATUSES_LIMIT),
-        params[:max_id],
-        params[:since_id]
+        params_slice(:max_id, :since_id, :min_id)
       )
 
       if truthy_param?(:only_media)
@@ -46,7 +43,7 @@ class Api::V1::Timelines::TagController < Api::BaseController
   end
 
   def tag_timeline_statuses
-    Status.as_tag_timeline(@tag, current_account, truthy_param?(:local))
+    HashtagQueryService.new.call(@tag, params.slice(:any, :all, :none), current_account, truthy_param?(:local))
   end
 
   def insert_pagination_headers
@@ -62,7 +59,7 @@ class Api::V1::Timelines::TagController < Api::BaseController
   end
 
   def prev_path
-    api_v1_timelines_tag_url params[:id], pagination_params(since_id: pagination_since_id)
+    api_v1_timelines_tag_url params[:id], pagination_params(min_id: pagination_since_id)
   end
 
   def pagination_max_id

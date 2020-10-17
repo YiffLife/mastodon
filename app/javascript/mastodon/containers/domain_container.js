@@ -6,12 +6,11 @@ import Domain from '../components/domain';
 import { openModal } from '../actions/modal';
 
 const messages = defineMessages({
-  blockDomainConfirm: { id: 'confirmations.domain_block.confirm', defaultMessage: 'Hide entire domain' },
+  blockDomainConfirm: { id: 'confirmations.domain_block.confirm', defaultMessage: 'Block entire domain' },
 });
 
 const makeMapStateToProps = () => {
-  const mapStateToProps = (state, { }) => ({
-  });
+  const mapStateToProps = () => ({});
 
   return mapStateToProps;
 };

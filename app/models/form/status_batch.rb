@@ -6,8 +6,6 @@ class Form::StatusBatch
 
   attr_accessor :status_ids, :action, :current_account
 
-  ACTION_TYPE = %w(nsfw_on nsfw_off delete).freeze
-
   def save
     case action
     when 'nsfw_on', 'nsfw_off'
@@ -36,7 +34,9 @@ class Form::StatusBatch
 
   def delete_statuses
     Status.where(id: status_ids).reorder(nil).find_each do |status|
-      RemovalWorker.perform_async(status.id)
+      status.discard
+      RemovalWorker.perform_async(status.id, immediate: true)
+      Tombstone.find_or_create_by(uri: status.uri, account: status.account, by_moderator: true)
       log_action :destroy, status
     end
 

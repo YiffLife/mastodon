@@ -2,6 +2,10 @@
 
 class ActivityPub::Activity
   include JsonLdHelper
+  include Redisable
+
+  SUPPORTED_TYPES = %w(Note Question).freeze
+  CONVERTED_TYPES = %w(Image Audio Video Article Page Event).freeze
 
   def initialize(json, account, **options)
     @json    = json
@@ -17,7 +21,7 @@ class ActivityPub::Activity
   class << self
     def factory(json, account, **options)
       @json = json
-      klass&.new(json, account, options)
+      klass&.new(json, account, **options)
     end
 
     private
@@ -50,6 +54,8 @@ class ActivityPub::Activity
         ActivityPub::Activity::Add
       when 'Remove'
         ActivityPub::Activity::Remove
+      when 'Move'
+        ActivityPub::Activity::Move
       end
     end
   end
@@ -68,14 +74,22 @@ class ActivityPub::Activity
     @object_uri ||= value_or_id(@object)
   end
 
-  def redis
-    Redis.current
+  def unsupported_object_type?
+    @object.is_a?(String) || !(supported_object_type? || converted_object_type?)
+  end
+
+  def supported_object_type?
+    equals_or_includes_any?(@object['type'], SUPPORTED_TYPES)
+  end
+
+  def converted_object_type?
+    equals_or_includes_any?(@object['type'], CONVERTED_TYPES)
   end
 
   def distribute(status)
     crawl_links(status)
 
-    notify_about_reblog(status) if reblog_of_local_account?(status)
+    notify_about_reblog(status) if reblog_of_local_account?(status) && !reblog_by_following_group_account?(status)
     notify_about_mentions(status)
 
     # Only continue if the status is supposed to have arrived in real-time.
@@ -91,12 +105,16 @@ class ActivityPub::Activity
     status.reblog? && status.reblog.account.local?
   end
 
+  def reblog_by_following_group_account?(status)
+    status.reblog? && status.account.group? && status.reblog.account.following?(status.account)
+  end
+
   def notify_about_reblog(status)
     NotifyService.new.call(status.reblog.account, status)
   end
 
   def notify_about_mentions(status)
-    status.mentions.includes(:account).each do |mention|
+    status.active_mentions.includes(:account).each do |mention|
       next unless mention.account.local? && audience_includes?(mention.account)
       NotifyService.new.call(mention.account, mention)
     end
@@ -114,11 +132,65 @@ class ActivityPub::Activity
   end
 
   def delete_arrived_first?(uri)
-    redis.exists("delete_upon_arrival:#{@account.id}:#{uri}")
+    redis.exists?("delete_upon_arrival:#{@account.id}:#{uri}")
   end
 
   def delete_later!(uri)
     redis.setex("delete_upon_arrival:#{@account.id}:#{uri}", 6.hours.seconds, uri)
+  end
+
+  def status_from_object
+    # If the status is already known, return it
+    status = status_from_uri(object_uri)
+
+    return status unless status.nil?
+
+    # If the boosted toot is embedded and it is a self-boost, handle it like a Create
+    unless unsupported_object_type?
+      actor_id = value_or_id(first_of_value(@object['attributedTo']))
+
+      if actor_id == @account.uri
+        return ActivityPub::Activity.factory({ 'type' => 'Create', 'actor' => actor_id, 'object' => @object }, @account).perform
+      end
+    end
+
+    fetch_remote_original_status
+  end
+
+  def dereference_object!
+    return unless @object.is_a?(String)
+    return if invalid_origin?(@object)
+
+    object = fetch_resource(@object, true, signed_fetch_account)
+    return unless object.present? && object.is_a?(Hash) && supported_context?(object)
+
+    @object = object
+  end
+
+  def signed_fetch_account
+    first_mentioned_local_account || first_local_follower
+  end
+
+  def first_mentioned_local_account
+    audience = (as_array(@json['to']) + as_array(@json['cc'])).uniq
+    local_usernames = audience.select { |uri| ActivityPub::TagManager.instance.local_uri?(uri) }
+                              .map { |uri| ActivityPub::TagManager.instance.uri_to_local_id(uri, :username) }
+
+    return if local_usernames.empty?
+
+    Account.local.where(username: local_usernames).first
+  end
+
+  def first_local_follower
+    @account.followers.local.first
+  end
+
+  def follow_request_from_object
+    @follow_request ||= FollowRequest.find_by(target_account: @account, uri: object_uri) unless object_uri.nil?
+  end
+
+  def follow_from_object
+    @follow ||= ::Follow.find_by(target_account: @account, uri: object_uri) unless object_uri.nil?
   end
 
   def fetch_remote_original_status
@@ -128,5 +200,28 @@ class ActivityPub::Activity
     elsif @object['url'].present?
       ::FetchRemoteStatusService.new.call(@object['url'])
     end
+  end
+
+  def lock_or_return(key, expire_after = 7.days.seconds)
+    yield if redis.set(key, true, nx: true, ex: expire_after)
+  ensure
+    redis.del(key)
+  end
+
+  def fetch?
+    !@options[:delivery]
+  end
+
+  def followed_by_local_accounts?
+    @account.passive_relationships.exists? || @options[:relayed_through_account]&.passive_relationships&.exists?
+  end
+
+  def requested_through_relay?
+    @options[:relayed_through_account] && Relay.find_by(inbox_url: @options[:relayed_through_account].inbox_url)&.enabled?
+  end
+
+  def reject_payload!
+    Rails.logger.info("Rejected #{@json['type']} activity #{@json['id']} from #{@account.uri}#{@options[:relayed_through_account] && "via #{@options[:relayed_through_account].uri}"}")
+    nil
   end
 end

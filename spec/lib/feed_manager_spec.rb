@@ -108,14 +108,14 @@ RSpec.describe FeedManager do
 
       it 'returns false for status by followee mentioning another account' do
         bob.follow!(alice)
-        status = PostStatusService.new.call(alice, 'Hey @jeff')
+        status = PostStatusService.new.call(alice, text: 'Hey @jeff')
         expect(FeedManager.instance.filter?(:home, status, bob.id)).to be false
       end
 
       it 'returns true for status by followee mentioning blocked account' do
         bob.block!(jeff)
         bob.follow!(alice)
-        status = PostStatusService.new.call(alice, 'Hey @jeff')
+        status = PostStatusService.new.call(alice, text: 'Hey @jeff')
         expect(FeedManager.instance.filter?(:home, status, bob.id)).to be true
       end
 
@@ -149,13 +149,21 @@ RSpec.describe FeedManager do
           status = Fabricate(:status, text: 'shiitake', account: jeff)
           expect(FeedManager.instance.filter?(:home, status, alice.id)).to be true
         end
+
+        it 'returns true if phrase is contained in a poll option' do
+          alice.custom_filters.create!(phrase: 'farts', context: %w(home public), irreversible: true)
+          alice.custom_filters.create!(phrase: 'pop tarts', context: %w(home), irreversible: true)
+          alice.follow!(jeff)
+          status = Fabricate(:status, text: 'what do you prefer', poll: Fabricate(:poll, options: %w(farts POP TARts)), account: jeff)
+          expect(FeedManager.instance.filter?(:home, status, alice.id)).to be true
+        end
       end
     end
 
     context 'for mentions feed' do
       it 'returns true for status that mentions blocked account' do
         bob.block!(jeff)
-        status = PostStatusService.new.call(alice, 'Hey @jeff')
+        status = PostStatusService.new.call(alice, text: 'Hey @jeff')
         expect(FeedManager.instance.filter?(:mentions, status, bob.id)).to be true
       end
 
@@ -168,13 +176,13 @@ RSpec.describe FeedManager do
 
       it 'returns true for status by silenced account who recipient is not following' do
         status = Fabricate(:status, text: 'Hello world', account: alice)
-        alice.update(silenced: true)
+        alice.silence!
         expect(FeedManager.instance.filter?(:mentions, status, bob.id)).to be true
       end
 
       it 'returns false for status by followed silenced account' do
         status = Fabricate(:status, text: 'Hello world', account: alice)
-        alice.update(silenced: true)
+        alice.silence!
         bob.follow!(alice)
         expect(FeedManager.instance.filter?(:mentions, status, bob.id)).to be false
       end
@@ -237,6 +245,23 @@ RSpec.describe FeedManager do
 
         # The second reblog should be ignored
         expect(FeedManager.instance.push_to_home(account, reblogs.last)).to be false
+      end
+
+      it 'saves a new reblog of a recently-reblogged status when previous reblog has been deleted' do
+        account = Fabricate(:account)
+        reblogged = Fabricate(:status)
+        old_reblog = Fabricate(:status, reblog: reblogged)
+
+        # The first reblog should be accepted
+        expect(FeedManager.instance.push_to_home(account, old_reblog)).to be true
+
+        # The first reblog should be successfully removed
+        expect(FeedManager.instance.unpush_from_home(account, old_reblog)).to be true
+
+        reblog = Fabricate(:status, reblog: reblogged)
+
+        # The second reblog should be accepted
+        expect(FeedManager.instance.push_to_home(account, reblog)).to be true
       end
 
       it 'does not save a new reblog of a multiply-reblogged-then-unreblogged status' do
@@ -393,7 +418,7 @@ RSpec.describe FeedManager do
     end
 
     it 'sends push updates' do
-      status  = Fabricate(:status)
+      status = Fabricate(:status)
 
       FeedManager.instance.push_to_home(receiver, status)
 
@@ -402,6 +427,31 @@ RSpec.describe FeedManager do
 
       deletion = Oj.dump(event: :delete, payload: status.id.to_s)
       expect(Redis.current).to have_received(:publish).with("timeline:#{receiver.id}", deletion)
+    end
+  end
+
+  describe '#clear_from_timeline' do
+    let(:account)          { Fabricate(:account) }
+    let(:followed_account) { Fabricate(:account) }
+    let(:target_account)   { Fabricate(:account) }
+    let(:status_1)         { Fabricate(:status, account: followed_account) }
+    let(:status_2)         { Fabricate(:status, account: target_account) }
+    let(:status_3)         { Fabricate(:status, account: followed_account, mentions: [Fabricate(:mention, account: target_account)]) }
+    let(:status_4)         { Fabricate(:status, mentions: [Fabricate(:mention, account: target_account)]) }
+    let(:status_5)         { Fabricate(:status, account: followed_account, reblog: status_4) }
+    let(:status_6)         { Fabricate(:status, account: followed_account, reblog: status_2) }
+    let(:status_7)         { Fabricate(:status, account: followed_account) }
+
+    before do
+      [status_1, status_3, status_5, status_6, status_7].each do |status|
+        Redis.current.zadd("feed:home:#{account.id}", status.id, status.id)
+      end
+    end
+
+    it 'correctly cleans the timeline' do
+      FeedManager.instance.clear_from_timeline(account, target_account)
+
+      expect(Redis.current.zrange("feed:home:#{account.id}", 0, -1)).to eq [status_1.id.to_s, status_7.id.to_s]
     end
   end
 end

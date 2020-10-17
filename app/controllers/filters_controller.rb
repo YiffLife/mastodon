@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 class FiltersController < ApplicationController
-  include Authorization
-
   layout 'admin'
 
+  before_action :authenticate_user!
   before_action :set_filters, only: :index
   before_action :set_filter, only: [:edit, :update, :destroy]
+  before_action :set_body_classes
 
   def index
     @filters = current_account.custom_filters
@@ -53,5 +53,9 @@ class FiltersController < ApplicationController
 
   def resource_params
     params.require(:custom_filter).permit(:phrase, :expires_in, :irreversible, :whole_word, context: [])
+  end
+
+  def set_body_classes
+    @body_classes = 'admin'
   end
 end

@@ -1,16 +1,10 @@
 # frozen_string_literal: true
 
 class Api::V1::ReportsController < Api::BaseController
-  before_action -> { doorkeeper_authorize! :read, :'read:reports' }, except: [:create]
   before_action -> { doorkeeper_authorize! :write, :'write:reports' }, only: [:create]
   before_action :require_user!
 
-  respond_to :json
-
-  def index
-    @reports = current_account.reports
-    render json: @reports, each_serializer: REST::ReportSerializer
-  end
+  override_rate_limit_headers :create, family: :reports
 
   def create
     @report = ReportService.new.call(
@@ -27,7 +21,7 @@ class Api::V1::ReportsController < Api::BaseController
   private
 
   def reported_status_ids
-    reported_account.statuses.find(status_ids).pluck(:id)
+    reported_account.statuses.with_discarded.find(status_ids).pluck(:id)
   end
 
   def status_ids

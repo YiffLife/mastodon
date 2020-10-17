@@ -1,4 +1,5 @@
 import { SETTING_CHANGE, SETTING_SAVE } from '../actions/settings';
+import { NOTIFICATIONS_FILTER_SET } from '../actions/notifications';
 import { COLUMN_ADD, COLUMN_REMOVE, COLUMN_MOVE, COLUMN_PARAMS_CHANGE } from '../actions/columns';
 import { STORE_HYDRATE } from '../actions/store';
 import { EMOJI_USE } from '../actions/emojis';
@@ -9,9 +10,11 @@ import uuid from '../uuid';
 const initialState = ImmutableMap({
   saved: true,
 
-  onboarded: false,
-
   skinTone: 1,
+
+  trends: ImmutableMap({
+    show: true,
+  }),
 
   home: ImmutableMap({
     shows: ImmutableMap({
@@ -27,23 +30,35 @@ const initialState = ImmutableMap({
   notifications: ImmutableMap({
     alerts: ImmutableMap({
       follow: true,
+      follow_request: false,
       favourite: true,
       reblog: true,
       mention: true,
+      poll: true,
+    }),
+
+    quickFilter: ImmutableMap({
+      active: 'all',
+      show: true,
+      advanced: false,
     }),
 
     shows: ImmutableMap({
       follow: true,
+      follow_request: false,
       favourite: true,
       reblog: true,
       mention: true,
+      poll: true,
     }),
 
     sounds: ImmutableMap({
       follow: true,
+      follow_request: false,
       favourite: true,
       reblog: true,
       mention: true,
+      poll: true,
     }),
   }),
 
@@ -63,10 +78,6 @@ const initialState = ImmutableMap({
     regex: ImmutableMap({
       body: '',
     }),
-  }),
-
-  trends: ImmutableMap({
-    show: true,
   }),
 });
 
@@ -112,6 +123,7 @@ export default function settings(state = initialState, action) {
   switch(action.type) {
   case STORE_HYDRATE:
     return hydrate(state, action.state.get('settings'));
+  case NOTIFICATIONS_FILTER_SET:
   case SETTING_CHANGE:
     return state
       .setIn(action.path, action.value)

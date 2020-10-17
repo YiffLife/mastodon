@@ -14,20 +14,22 @@ const messages = defineMessages({
   title: { id: 'column.community', defaultMessage: 'Local timeline' },
 });
 
-const mapStateToProps = (state, { onlyMedia, columnId }) => {
+const mapStateToProps = (state, { columnId }) => {
   const uuid = columnId;
   const columns = state.getIn(['settings', 'columns']);
   const index = columns.findIndex(c => c.get('uuid') === uuid);
+  const onlyMedia = (columnId && index >= 0) ? columns.get(index).getIn(['params', 'other', 'onlyMedia']) : state.getIn(['settings', 'community', 'other', 'onlyMedia']);
+  const timelineState = state.getIn(['timelines', `community${onlyMedia ? ':media' : ''}`]);
 
   return {
-    hasUnread: state.getIn(['timelines', `community${onlyMedia ? ':media' : ''}`, 'unread']) > 0,
-    onlyMedia: (columnId && index >= 0) ? columns.get(index).getIn(['params', 'other', 'onlyMedia']) : state.getIn(['settings', 'community', 'other', 'onlyMedia']),
+    hasUnread: !!timelineState && timelineState.get('unread') > 0,
+    onlyMedia,
   };
 };
 
-@connect(mapStateToProps)
+export default @connect(mapStateToProps)
 @injectIntl
-export default class CommunityTimeline extends React.PureComponent {
+class CommunityTimeline extends React.PureComponent {
 
   static contextTypes = {
     router: PropTypes.object,
@@ -105,7 +107,7 @@ export default class CommunityTimeline extends React.PureComponent {
     const pinned = !!columnId;
 
     return (
-      <Column ref={this.setRef} label={intl.formatMessage(messages.title)}>
+      <Column bindToDocument={!multiColumn} ref={this.setRef} label={intl.formatMessage(messages.title)}>
         <ColumnHeader
           icon='users'
           active={hasUnread}
@@ -126,6 +128,7 @@ export default class CommunityTimeline extends React.PureComponent {
           onLoadMore={this.handleLoadMore}
           emptyMessage={<FormattedMessage id='empty_column.community' defaultMessage='The local timeline is empty. Write something publicly to get the ball rolling!' />}
           shouldUpdateScroll={shouldUpdateScroll}
+          bindToDocument={!multiColumn}
         />
       </Column>
     );

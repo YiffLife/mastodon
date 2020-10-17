@@ -24,7 +24,7 @@ describe Admin::StatusesController do
     end
 
     it 'returns http success with media' do
-      get :index, params: { account_id: account.id , media: true }
+      get :index, params: { account_id: account.id, media: true }
 
       statuses = assigns(:statuses).to_a
       expect(statuses.size).to eq 1
@@ -65,7 +65,7 @@ describe Admin::StatusesController do
       it 'removes a status' do
         allow(RemovalWorker).to receive(:perform_async)
         subject.call
-        expect(RemovalWorker).to have_received(:perform_async).with(status_ids.first)
+        expect(RemovalWorker).to have_received(:perform_async).with(status_ids.first, immediate: true)
       end
     end
 

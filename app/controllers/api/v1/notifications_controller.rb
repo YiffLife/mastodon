@@ -6,8 +6,6 @@ class Api::V1::NotificationsController < Api::BaseController
   before_action :require_user!
   after_action :insert_pagination_headers, only: :index
 
-  respond_to :json
-
   DEFAULT_NOTIFICATIONS_LIMIT = 15
 
   def index
@@ -37,15 +35,14 @@ class Api::V1::NotificationsController < Api::BaseController
   end
 
   def paginated_notifications
-    browserable_account_notifications.paginate_by_max_id(
+    browserable_account_notifications.paginate_by_id(
       limit_param(DEFAULT_NOTIFICATIONS_LIMIT),
-      params[:max_id],
-      params[:since_id]
+      params_slice(:max_id, :since_id, :min_id)
     )
   end
 
   def browserable_account_notifications
-    current_account.notifications.browserable(exclude_types)
+    current_account.notifications.browserable(exclude_types, from_account)
   end
 
   def target_statuses_from_notifications
@@ -64,7 +61,7 @@ class Api::V1::NotificationsController < Api::BaseController
 
   def prev_path
     unless @notifications.empty?
-      api_v1_notifications_url pagination_params(since_id: pagination_since_id)
+      api_v1_notifications_url pagination_params(min_id: pagination_since_id)
     end
   end
 
@@ -80,6 +77,10 @@ class Api::V1::NotificationsController < Api::BaseController
     val = params.permit(exclude_types: [])[:exclude_types] || []
     val = [val] unless val.is_a?(Enumerable)
     val
+  end
+
+  def from_account
+    params[:account_id]
   end
 
   def pagination_params(core_params)
