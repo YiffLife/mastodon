@@ -1,7 +1,7 @@
 Contributing
 ============
 
-Thank you for considering contributing to Mastodon 🐘 
+Thank you for considering contributing to Mastodon 🐘
 
 You can contribute in the following ways:
 
@@ -10,15 +10,17 @@ You can contribute in the following ways:
 - Contributing code to Mastodon by fixing bugs or implementing features
 - Improving the documentation
 
+If your contributions are accepted into Mastodon, you can request to be paid through [our OpenCollective](https://opencollective.com/mastodon).
+
 ## Bug reports
 
-Bug reports and feature suggestions can be submitted to [GitHub Issues](https://github.com/tootsuite/mastodon/issues). Please make sure that you are not submitting duplicates, and that a similar report or request has not already been resolved or rejected in the past using the search function. Please also use descriptive, concise titles.
+Bug reports and feature suggestions must use descriptive and concise titles and be submitted to [GitHub Issues](https://github.com/tootsuite/mastodon/issues). Please use the search function to make sure that you are not submitting duplicates, and that a similar report or request has not already been resolved or rejected.
 
 ## Translations
 
-You can submit translations via [Weblate](https://weblate.joinmastodon.org/). They are periodically merged into the codebase.
+You can submit translations via [Crowdin](https://crowdin.com/project/mastodon). They are periodically merged into the codebase.
 
-[![Mastodon translation statistics by language](https://weblate.joinmastodon.org/widgets/mastodon/-/multi-auto.svg)](https://weblate.joinmastodon.org/)
+[![Crowdin](https://d322cqt584bo4o.cloudfront.net/mastodon/localized.svg)](https://crowdin.com/project/mastodon)
 
 ## Pull requests
 

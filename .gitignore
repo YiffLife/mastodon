@@ -13,33 +13,40 @@
 /db/*.sqlite3-journal
 
 # Ignore all logfiles and tempfiles.
+.eslintcache
 /log/*
 !/log/.keep
 /tmp
-coverage
-public/system
-public/assets
-public/packs
-public/packs-test
+/coverage
+/public/system
+/public/assets
+/public/packs
+/public/packs-test
 .env
 .env.production
-node_modules/
-build/
+.env.development
+/node_modules/
+/build/
 
 # Ignore Vagrant files
 .vagrant/
 
 # Ignore Capistrano customizations
-config/deploy/*
+/config/deploy/*
 
 # Ignore IDE files
 .vscode/
 .idea/
 
 # Ignore postgres + redis + elasticsearch volume optionally created by docker-compose
-postgres
-redis
-elasticsearch
+/postgres
+/redis
+/elasticsearch
+
+# ignore Helm lockfile, dependency charts, and local values file
+/chart/Chart.lock
+/chart/charts/*.tgz
+/chart/values.yaml
 
 # Ignore Apple files
 .DS_Store
@@ -55,6 +62,8 @@ npm-debug.log
 yarn-error.log
 yarn-debug.log
 
+# Ignore vagrant log files
+*-cloudimg-console.log
+
 # Ignore Docker option files
 docker-compose.override.yml
-

@@ -5,7 +5,7 @@ import { defineMessages, injectIntl } from 'react-intl';
 import ImmutablePureComponent from 'react-immutable-pure-component';
 
 const messages = defineMessages({
-  unblockDomain: { id: 'account.unblock_domain', defaultMessage: 'Unhide {domain}' },
+  unblockDomain: { id: 'account.unblock_domain', defaultMessage: 'Unblock domain {domain}' },
 });
 
 export default @injectIntl
@@ -32,7 +32,7 @@ class Account extends ImmutablePureComponent {
           </span>
 
           <div className='domain__buttons'>
-            <IconButton active icon='unlock-alt' title={intl.formatMessage(messages.unblockDomain, { domain })} onClick={this.handleDomainUnblock} />
+            <IconButton active icon='unlock' title={intl.formatMessage(messages.unblockDomain, { domain })} onClick={this.handleDomainUnblock} />
           </div>
         </div>
       </div>

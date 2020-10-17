@@ -14,6 +14,7 @@ class EmailMxValidator < ActiveModel::Validator
 
     return true if domain.nil?
 
+    domain    = TagManager.instance.normalize_domain(domain)
     hostnames = []
     ips       = []
 
@@ -24,10 +25,13 @@ class EmailMxValidator < ActiveModel::Validator
 
       ([domain] + hostnames).uniq.each do |hostname|
         ips.concat(dns.getresources(hostname, Resolv::DNS::Resource::IN::A).to_a.map { |e| e.address.to_s })
+        ips.concat(dns.getresources(hostname, Resolv::DNS::Resource::IN::AAAA).to_a.map { |e| e.address.to_s })
       end
     end
 
     ips.empty? || on_blacklist?(hostnames + ips)
+  rescue Addressable::URI::InvalidURIError
+    true
   end
 
   def on_blacklist?(values)
