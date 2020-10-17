@@ -74,10 +74,36 @@ RSpec.describe Formatter do
     end
 
     context 'given a URL with a query string' do
-      let(:text) { 'https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&q=autolink' }
+      context 'with escaped unicode character' do
+        let(:text) { 'https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&q=autolink' }
 
-      it 'matches the full URL' do
-        is_expected.to include 'href="https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&amp;q=autolink"'
+        it 'matches the full URL' do
+          is_expected.to include 'href="https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&amp;q=autolink"'
+        end
+      end
+
+      context 'with unicode character' do
+        let(:text) { 'https://www.ruby-toolbox.com/search?utf8=✓&q=autolink' }
+
+        it 'matches the full URL' do
+          is_expected.to include 'href="https://www.ruby-toolbox.com/search?utf8=✓&amp;q=autolink"'
+        end
+      end
+
+      context 'with unicode character at the end' do
+        let(:text) { 'https://www.ruby-toolbox.com/search?utf8=✓' }
+
+        it 'matches the full URL' do
+          is_expected.to include 'href="https://www.ruby-toolbox.com/search?utf8=✓"'
+        end
+      end
+
+      context 'with escaped and not escaped unicode characters' do
+        let(:text) { 'https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&utf81=✓&q=autolink' }
+
+        it 'preserves escaped unicode characters' do
+          is_expected.to include 'href="https://www.ruby-toolbox.com/search?utf8=%E2%9C%93&amp;utf81=✓&amp;q=autolink"'
+        end
       end
     end
 
@@ -86,6 +112,22 @@ RSpec.describe Formatter do
 
       it 'matches the full URL' do
         is_expected.to include 'href="https://en.wikipedia.org/wiki/Diaspora_(software)"'
+      end
+    end
+
+    context 'given a URL in quotation marks' do
+      let(:text) { '"https://example.com/"' }
+
+      it 'does not match the quotation marks' do
+        is_expected.to include 'href="https://example.com/"'
+      end
+    end
+
+    context 'given a URL in angle brackets' do
+      let(:text) { '<https://example.com/>' }
+
+      it 'does not match the angle brackets' do
+        is_expected.to include 'href="https://example.com/"'
       end
     end
 
@@ -102,6 +144,22 @@ RSpec.describe Formatter do
 
       it 'matches the full URL' do
         is_expected.to include 'href="https://ko.wikipedia.org/wiki/대한민국"'
+      end
+    end
+
+    context 'given a URL with a full-width space' do
+      let(:text) { 'https://example.com/　abc123' }
+
+      it 'does not match the full-width space' do
+        is_expected.to include 'href="https://example.com/"'
+      end
+    end
+
+    context 'given a URL in Japanese quotation marks' do
+      let(:text) { '「[https://example.org/」' }
+
+      it 'does not match the quotation marks' do
+        is_expected.to include 'href="https://example.org/"'
       end
     end
 
@@ -124,7 +182,11 @@ RSpec.describe Formatter do
     context 'given a URL containing unsafe code (XSS attack, visible part)' do
       let(:text) { %q{http://example.com/b<del>b</del>} }
 
-      it 'escapes the HTML in the URL' do
+      it 'does not include the HTML in the URL' do
+        is_expected.to include '"http://example.com/b"'
+      end
+
+      it 'escapes the HTML' do
         is_expected.to include '&lt;del&gt;b&lt;/del&gt;'
       end
     end
@@ -132,7 +194,11 @@ RSpec.describe Formatter do
     context 'given a URL containing unsafe code (XSS attack, invisible part)' do
       let(:text) { %q{http://example.com/blahblahblahblah/a<script>alert("Hello")</script>} }
 
-      it 'escapes the HTML in the URL' do
+      it 'does not include the HTML in the URL' do
+        is_expected.to include '"http://example.com/blahblahblahblah/a"'
+      end
+
+      it 'escapes the HTML' do
         is_expected.to include '&lt;script&gt;alert(&quot;Hello&quot;)&lt;/script&gt;'
       end
     end
@@ -168,6 +234,38 @@ RSpec.describe Formatter do
         is_expected.to include '/tags/hashtag" class="mention hashtag" rel="tag">#<span>hashtag</span></a>'
       end
     end
+
+    context 'given text containing a hashtag with Unicode chars' do
+      let(:text)  { '#hashtagタグ' }
+
+      it 'creates a hashtag link' do
+        is_expected.to include '/tags/hashtag%E3%82%BF%E3%82%B0" class="mention hashtag" rel="tag">#<span>hashtagタグ</span></a>'
+      end
+    end
+
+    context 'given a stand-alone xmpp: URI' do
+      let(:text) { 'xmpp:user@instance.com' }
+
+      it 'matches the full URI' do
+        is_expected.to include 'href="xmpp:user@instance.com"'
+      end
+    end
+
+    context 'given a an xmpp: URI with a query-string' do
+      let(:text) { 'please join xmpp:muc@instance.com?join right now' }
+
+      it 'matches the full URI' do
+        is_expected.to include 'href="xmpp:muc@instance.com?join"'
+      end
+    end
+
+    context 'given text containing a magnet: URI' do
+      let(:text) { 'wikipedia gives this example of a magnet uri: magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a' }
+
+      it 'matches the full URI' do
+        is_expected.to include 'href="magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a"'
+      end
+    end
   end
 
   describe '#format_spoiler' do
@@ -187,7 +285,7 @@ RSpec.describe Formatter do
       let(:text) { ':coolcat: Beep boop' }
 
       it 'converts the shortcode to an image tag' do
-        is_expected.to match(/<img draggable="false" class="emojione" alt=":coolcat:"/)
+        is_expected.to match(/<img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
       end
     end
   end
@@ -256,7 +354,7 @@ RSpec.describe Formatter do
           let(:text) { ':coolcat: Beep boop' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/<p><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<p><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -264,7 +362,7 @@ RSpec.describe Formatter do
           let(:text) { 'Beep :coolcat: boop' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/Beep <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/Beep <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -280,7 +378,7 @@ RSpec.describe Formatter do
           let(:text) { 'Beep boop :coolcat:' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/boop <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/boop <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
       end
@@ -303,7 +401,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>:coolcat: Beep boop<br />' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/<p><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<p><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -311,7 +409,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>Beep :coolcat: boop</p>' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/Beep <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/Beep <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -327,7 +425,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>Beep boop<br />:coolcat:</p>' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/<br><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<br><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
       end
@@ -426,7 +524,7 @@ RSpec.describe Formatter do
           let(:text) { ':coolcat: Beep boop' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/<p><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<p><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -434,7 +532,7 @@ RSpec.describe Formatter do
           let(:text) { 'Beep :coolcat: boop' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/Beep <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/Beep <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -450,7 +548,7 @@ RSpec.describe Formatter do
           let(:text) { 'Beep boop :coolcat:' }
 
           it 'converts the shortcode to an image tag' do
-            is_expected.to match(/boop <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/boop <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
       end
@@ -477,7 +575,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>:coolcat: Beep boop<br />' }
 
           it 'converts shortcode to image tag' do
-            is_expected.to match(/<p><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<p><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -485,7 +583,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>Beep :coolcat: boop</p>' }
 
           it 'converts shortcode to image tag' do
-            is_expected.to match(/Beep <img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/Beep <img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
 
@@ -501,7 +599,7 @@ RSpec.describe Formatter do
           let(:text) { '<p>Beep boop<br />:coolcat:</p>' }
 
           it 'converts shortcode to image tag' do
-            is_expected.to match(/<br><img draggable="false" class="emojione" alt=":coolcat:"/)
+            is_expected.to match(/<br><img draggable="false" class="emojione custom-emoji" alt=":coolcat:"/)
           end
         end
       end
